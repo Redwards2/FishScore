@@ -24,8 +24,23 @@ else:
 # Placeholder header
 st.header("🏈 Track Dynasty Owner Scores Based on Trade Wins & Standings")
 
-# Placeholder for league input
-league_id = st.text_input("Enter Sleeper League ID")
+# START: Allow user to select league from their Sleeper username
+sleeper_username = st.text_input("Enter your Sleeper username")
+league_id = None
+
+if sleeper_username:
+    user_resp = requests.get(f"https://api.sleeper.app/v1/user/{sleeper_username}")
+    if user_resp.status_code == 200:
+        user_id = user_resp.json().get("user_id")
+        leagues_resp = requests.get(f"https://api.sleeper.app/v1/user/{user_id}/leagues/nfl/2024")
+        if leagues_resp.status_code == 200:
+            leagues = leagues_resp.json()
+            league_options = {f"{lg['name']} ({lg['league_id']})": lg['league_id'] for lg in leagues}
+            selected_league = st.selectbox("Select a league", list(league_options.keys()))
+            league_id = league_options[selected_league]
+    else:
+        st.error("Sleeper username not found or could not be accessed.")
+# END
 
 # START: Load all transactions from all weeks and previous leagues
 @st.cache_data(show_spinner=False)
