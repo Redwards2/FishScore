@@ -11,7 +11,9 @@ st.set_page_config(page_title="Dynasty Owner Score Tracker")
 st.title("Dynasty Owner Score Tracker")
 
 # START: Load KTC Values from CSV
-ktc_csv_path = "/mnt/data/ktc_values (1).csv"
+# START: Updated file path for local environment
+ktc_csv_path = "ktc_values (1).csv"
+# END
 if os.path.exists(ktc_csv_path):
     ktc_df = pd.read_csv(ktc_csv_path)
     st.success("KTC values loaded successfully.")
