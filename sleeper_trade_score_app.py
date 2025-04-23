@@ -1,0 +1,103 @@
+# Initial canvas setup - starting point for Fantasy Football Owner Score App
+# This file will be extended incrementally
+
+import streamlit as st
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import os
+
+st.set_page_config(page_title="Dynasty Owner Score Tracker")
+st.title("Dynasty Owner Score Tracker")
+
+# START: Load KTC Values from CSV
+ktc_csv_path = "/mnt/data/ktc_values (1).csv"
+if os.path.exists(ktc_csv_path):
+    ktc_df = pd.read_csv(ktc_csv_path)
+    st.success("KTC values loaded successfully.")
+else:
+    ktc_df = pd.DataFrame()
+    st.warning("KTC values file not found.")
+# END
+
+# Placeholder header
+st.header("🏈 Track Dynasty Owner Scores Based on Trade Wins & Standings")
+
+# Placeholder for league input
+league_id = st.text_input("Enter Sleeper League ID")
+
+# START: Load all transactions to identify trades
+@st.cache_data(show_spinner=False)
+def get_all_transactions(league_id):
+    all_transactions = []
+    year = 2024
+    while year >= 2019:  # Checking from 2024 back to 2019
+        url = f"https://api.sleeper.app/v1/league/{league_id}/transactions/{year}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            transactions = response.json()
+            trades = [t for t in transactions if t.get("type") == "trade"]
+            all_transactions.extend(trades)
+        else:
+            break
+        year -= 1
+    return all_transactions
+
+# START: Get owner ID to username mapping
+@st.cache_data(show_spinner=False)
+def get_owner_map(league_id):
+    url = f"https://api.sleeper.app/v1/league/{league_id}/users"
+    response = requests.get(url)
+    if response.status_code == 200:
+        users = response.json()
+        return {user["user_id"]: user["display_name"] for user in users}
+    return {}
+# END
+
+# START: Parse trades and calculate win values
+@st.cache_data(show_spinner=False)
+def evaluate_trades(trades, ktc_df):
+    owner_scores = {}
+    for trade in trades:
+        rosters = trade.get("roster_ids", [])
+        adds = trade.get("adds", {})
+
+        trade_map = {rid: [] for rid in rosters}
+        for player_id, rid in adds.items():
+            trade_map[rid].append(player_id)
+
+        values = {}
+        for rid, players in trade_map.items():
+            total_value = 0
+            for p in players:
+                player_name = p.replace("_", " ").title()
+                ktc_row = ktc_df[ktc_df["Player_Sleeper"].str.lower() == player_name.lower()]
+                if not ktc_row.empty:
+                    total_value += int(ktc_row["KTC_Value"].values[0])
+            values[rid] = total_value
+
+        if len(values) == 2:
+            (a, b), (va, vb) = list(values.items())[0], list(values.items())[1]
+            winner = a if va > vb else b
+            diff = abs(va - vb)
+            owner_scores[winner] = owner_scores.get(winner, 0) + diff
+
+    return owner_scores
+# END
+
+if league_id:
+    trades = get_all_transactions(league_id)
+    st.write(f"Found {len(trades)} trades in league {league_id} across seasons.")
+
+    if not ktc_df.empty and trades:
+        owner_scores = evaluate_trades(trades, ktc_df)
+        owner_map = get_owner_map(league_id)
+
+        # Convert to usernames
+        readable_scores = [(owner_map.get(oid, oid), score) for oid, score in owner_scores.items()]
+
+        st.subheader("📈 Trade Scoreboard")
+        st.write(pd.DataFrame(readable_scores, columns=["Owner", "Score"]).sort_values(by="Score", ascending=False))
+
+# Placeholder area for showing trades and scoring (to be built in next steps)
+st.write("Owner scores will appear here after implementing trade tracking and KTC integration.")
