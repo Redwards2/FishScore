@@ -108,7 +108,20 @@ if league_id:
         owner_map = get_owner_map(league_id)
 
         # Convert to usernames
-        readable_scores = [(owner_map.get(oid, oid), score) for oid, score in owner_scores.items()]
+        # START: Convert roster ID to user display name via lookup
+        # We'll need to query rosters to get the mapping of roster_id -> owner_id
+        roster_resp = requests.get(f"https://api.sleeper.app/v1/league/{league_id}/rosters")
+        roster_map = {}
+        if roster_resp.status_code == 200:
+            for r in roster_resp.json():
+                roster_map[r["roster_id"]] = r["owner_id"]
+
+        readable_scores = []
+        for rid, score in owner_scores.items():
+            owner_id = roster_map.get(int(rid), rid)
+            display_name = owner_map.get(owner_id, f"User {owner_id}")
+            readable_scores.append((display_name, score))
+        # END
 
         st.subheader("📈 Trade Scoreboard")
         st.write(pd.DataFrame(readable_scores, columns=["Owner", "Score"]).sort_values(by="Score", ascending=False))
