@@ -38,7 +38,7 @@ def get_all_transactions(league_id):
         visited.add(current_league_id)
 
         # Loop through all 18 weeks for this league ID
-        for week in range(1, 19):
+        for week in range(0, 19):
             url = f"https://api.sleeper.app/v1/league/{current_league_id}/transactions/{week}"
             response = requests.get(url)
             if response.status_code == 200:
