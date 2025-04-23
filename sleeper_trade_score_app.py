@@ -117,9 +117,9 @@ if league_id:
                 roster_map[r["roster_id"]] = r["owner_id"]
 
         readable_scores = []
-        for rid, score in owner_scores.items():
-            owner_id = roster_map.get(int(rid), rid)
+        for rid, owner_id in roster_map.items():
             display_name = owner_map.get(owner_id, f"User {owner_id}")
+            score = owner_scores.get(rid, 0)
             readable_scores.append((display_name, score))
         # END
 
