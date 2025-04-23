@@ -3,7 +3,6 @@
 
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import pandas as pd
 import os
 
@@ -28,22 +27,35 @@ st.header("🏈 Track Dynasty Owner Scores Based on Trade Wins & Standings")
 # Placeholder for league input
 league_id = st.text_input("Enter Sleeper League ID")
 
-# START: Load all transactions to identify trades
+# START: Load all transactions from all weeks and previous leagues
 @st.cache_data(show_spinner=False)
 def get_all_transactions(league_id):
-    all_transactions = []
-    year = 2024
-    while year >= 2019:  # Checking from 2024 back to 2019
-        url = f"https://api.sleeper.app/v1/league/{league_id}/transactions/{year}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            transactions = response.json()
-            trades = [t for t in transactions if t.get("type") == "trade"]
-            all_transactions.extend(trades)
+    all_trades = []
+    current_league_id = league_id
+    visited = set()
+
+    while current_league_id and current_league_id not in visited:
+        visited.add(current_league_id)
+
+        # Loop through all 18 weeks for this league ID
+        for week in range(1, 19):
+            url = f"https://api.sleeper.app/v1/league/{current_league_id}/transactions/{week}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                transactions = response.json()
+                trades = [t for t in transactions if t.get("type") == "trade"]
+                all_trades.extend(trades)
+
+        # Move to previous league ID (if exists)
+        league_info = requests.get(f"https://api.sleeper.app/v1/league/{current_league_id}")
+        if league_info.status_code == 200:
+            league_data = league_info.json()
+            current_league_id = league_data.get("previous_league_id")
         else:
             break
-        year -= 1
-    return all_transactions
+
+    return all_trades
+# END
 
 # START: Get owner ID to username mapping
 @st.cache_data(show_spinner=False)
@@ -89,7 +101,7 @@ def evaluate_trades(trades, ktc_df):
 
 if league_id:
     trades = get_all_transactions(league_id)
-    st.write(f"Found {len(trades)} trades in league {league_id} across seasons.")
+    st.write(f"Found {len(trades)} trades in league {league_id} and prior seasons.")
 
     if not ktc_df.empty and trades:
         owner_scores = evaluate_trades(trades, ktc_df)
