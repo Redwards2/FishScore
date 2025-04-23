@@ -74,7 +74,7 @@ def evaluate_trades(trades, ktc_df):
     owner_scores = {}
     for trade in trades:
         rosters = trade.get("roster_ids", [])
-        adds = trade.get("adds", {})
+        adds = trade.get("adds") or {}  # Safely handle None
 
         trade_map = {rid: [] for rid in rosters}
         for player_id, rid in adds.items():
