@@ -124,7 +124,7 @@ if league_id:
         # END
 
         st.subheader("📈 Trade Scoreboard")
-        st.write(pd.DataFrame(readable_scores, columns=["Owner", "Score"]).sort_values(by="Score", ascending=False))
+        st.dataframe(pd.DataFrame(readable_scores, columns=["Owner", "Score"]).sort_values(by="Score", ascending=False), use_container_width=True))
 
 # Placeholder area for showing trades and scoring (to be built in next steps)
 st.write("Owner scores will appear here after implementing trade tracking and KTC integration.")
