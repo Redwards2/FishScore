@@ -144,36 +144,39 @@ if league_id:
 
 # START: Global leaderboard from usernames.csv
 user_csv_path = "sleeper_usernames.csv"
-if os.path.exists(user_csv_path):
+if os.path.exists(user_csv_path) and not ktc_df.empty:
     st.subheader("🌍 Global Leaderboard (Multi-League)")
-    usernames_df = pd.read_csv(user_csv_path)
-    global_scores = []
+    with st.spinner("Loading global trade data..."):
+        usernames_df = pd.read_csv(user_csv_path)
+        global_scores = []
 
-    for username in usernames_df["sleeper_username"]:
-        user_resp = requests.get(f"https://api.sleeper.app/v1/user/{username}")
-        if user_resp.status_code != 200:
-            continue
+        import time
+        for username in usernames_df["sleeper_username"]:
+            user_resp = requests.get(f"https://api.sleeper.app/v1/user/{username}")
+            if user_resp.status_code != 200:
+                continue
 
-        user_id = user_resp.json().get("user_id")
-        leagues_resp = requests.get(f"https://api.sleeper.app/v1/user/{user_id}/leagues/nfl/2024")
-        if leagues_resp.status_code != 200:
-            continue
+            user_id = user_resp.json().get("user_id")
+            leagues_resp = requests.get(f"https://api.sleeper.app/v1/user/{user_id}/leagues/nfl/2024")
+            if leagues_resp.status_code != 200:
+                continue
 
-        user_score = 0
-        for league in leagues_resp.json():
-            lid = league["league_id"]
-            trades = get_all_transactions(lid)
-            owner_scores = evaluate_trades(trades, ktc_df)
-            roster_resp = requests.get(f"https://api.sleeper.app/v1/league/{lid}/rosters")
-            if roster_resp.status_code == 200:
-                for r in roster_resp.json():
-                    if r["owner_id"] == user_id:
-                        score = owner_scores.get(r["roster_id"], 0)
-                        user_score += score
+            user_score = 0
+            for league in leagues_resp.json():
+                lid = league["league_id"]
+                trades = get_all_transactions(lid)
+                owner_scores = evaluate_trades(trades, ktc_df)
+                roster_resp = requests.get(f"https://api.sleeper.app/v1/league/{lid}/rosters")
+                if roster_resp.status_code == 200:
+                    for r in roster_resp.json():
+                        if r["owner_id"] == user_id:
+                            score = owner_scores.get(r["roster_id"], 0)
+                            user_score += score
+                time.sleep(0.1)  # Throttle API calls to ~10 requests/sec
 
-        global_scores.append((username, user_score))
+            global_scores.append((username, user_score))
 
-    global_df = pd.DataFrame(global_scores, columns=["Sleeper Username", "Total Score"]).sort_values(by="Total Score", ascending=False).reset_index(drop=True)
-    st.dataframe(global_df, use_container_width=True, height=len(global_df) * 35 + 40)
+        global_df = pd.DataFrame(global_scores, columns=["Sleeper Username", "Total Score"]).sort_values(by="Total Score", ascending=False).reset_index(drop=True)
+        st.dataframe(global_df, use_container_width=True, height=len(global_df) * 35 + 40)
 # END
 st.write("Owner scores will appear here after implementing trade tracking and KTC integration.")
