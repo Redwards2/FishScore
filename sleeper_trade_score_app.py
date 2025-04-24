@@ -147,7 +147,7 @@ user_csv_path = "sleeper_usernames.csv"
 if os.path.exists(user_csv_path) and not ktc_df.empty:
     st.subheader("🌍 Global Leaderboard (Multi-League)")
     with st.spinner("Loading global trade data..."):
-        usernames_df = pd.read_csv(user_csv_path)
+        usernames_df = pd.read_csv(user_csv_path).head(200)  # TEMP LIMIT for testing
         global_scores = []
 
         import time
